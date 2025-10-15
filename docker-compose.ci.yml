@@ -15,7 +15,7 @@ services:
   nginx:
     container_name: nginx
     build:
-      context: ./nginx
+      context: /nginx
       dockerfile: Dockerfile
       cache_from:
         - '${NEXT_APP_NGINX_IMAGE}'
