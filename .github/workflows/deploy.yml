@@ -62,30 +62,28 @@ jobs:
       - name: Checkout main branch
         uses: actions/checkout@v4
 
-      - name: Set up SSH agent
-        run: |
-          # Start the ssh-agent
-          eval "$(ssh-agent -s)"
-          # Add the private key to the agent
-          ssh-add - <<< "${{ secrets.PRIVATE_KEY }}"
+      # Step 1: Copy docker-compose.prod.yml to the server
+      - name: Copy file via scp
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.AWS_EC2_IP_ADDRESS }}
+          username: ${{ secrets.AWS_HOST_USER }}
+          key: ${{ secrets.PRIVATE_KEY }}
+          port: 22
+          source: "docker-compose.prod.yml"
+          target: "~/"
 
-      - name: Deploy to EC2
-        run: |
-          # First, copy the compose file
-          scp -o StrictHostKeyChecking=no ./docker-compose.prod.yml ${{ secrets.AWS_HOST_USER }}@${{ secrets.AWS_EC2_IP_ADDRESS }}:~/
-
-          # Then, SSH in and run the deployment commands
-          ssh -o StrictHostKeyChecking=no ${{ secrets.AWS_HOST_USER }}@${{ secrets.AWS_EC2_IP_ADDRESS }} << 'EOF'
-            # Use the GITHUB_TOKEN for secure login
+      # Step 2: Run deployment commands on the server
+      - name: Deploy via ssh
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_EC2_IP_ADDRESS }}
+          username: ${{ secrets.AWS_HOST_USER }}
+          key: ${{ secrets.PRIVATE_KEY }}
+          port: 22
+          script: |
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Pull the latest images
             docker-compose -f docker-compose.prod.yml pull
-            
-            # Bring the services up
             docker-compose -f docker-compose.prod.yml up -d --remove-orphans
-            
-            # Clean up
             docker logout
             docker image prune -af
-          EOF
