@@ -59,6 +59,9 @@ jobs:
     needs: build # This ensures the build job must succeed first
 
     steps:
+      - name : Checkout main branch
+        uses : actions/checkout@v4
+
       - name: Add SSH key to the agent
         env:
           SSH_AUTH_SOCK: /tmp/ssh_agent.sock
