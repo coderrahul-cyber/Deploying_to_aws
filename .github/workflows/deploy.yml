@@ -57,10 +57,10 @@ jobs:
     name: Deploy to AWS EC2
     runs-on: ubuntu-latest
     needs: build
+    # It's still good practice to keep the permissions block
     permissions:
       contents: read
       packages: read
-
 
     steps:
       - name: Checkout main branch
@@ -84,13 +84,10 @@ jobs:
           key: ${{ secrets.PRIVATE_KEY }}
           port: 22
           script: |
-            # --- FIX: Create the .env file with the image names ---
-            echo "NEXT_APP_WEBSITE_IMAGE=ghcr.io/${{ github.repository_owner }}/website:latest" > .env
-            echo "NEXT_APP_NGINX_IMAGE=ghcr.io/${{ github.repository_owner }}/nginx:latest" >> .env
-
-            # Now the rest of the script will work
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            # Docker Compose will automatically use the .env file
+            # --- FIX: Use the powerful Personal Access Token for login ---
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # The rest of the script remains the same
             sudo docker compose -f docker-compose.prod.yml pull
             sudo docker compose -f docker-compose.prod.yml up -d --remove-orphans
             sudo docker logout
