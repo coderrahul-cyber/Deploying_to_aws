@@ -61,6 +61,18 @@ jobs:
     steps:
       - name : Checkout main branch
         uses : actions/checkout@v4
+       # --- START: TEMPORARY DEBUG STEP ---
+      - name: Debug SSH Connection
+        run: |
+          # 1. Create a temporary file for the private key
+          echo "${{ secrets.PRIVATE_KEY }}" > private_key.pem
+          
+          # 2. Set the correct permissions for the key file (very important)
+          chmod 600 private_key.pem
+
+          # 3. Attempt to connect with VERBOSE output (-v)
+          ssh -v -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.AWS_HOST_USER }}@${{ secrets.AWS_EC2_IP_ADDRESS }} "echo 'SSH connection successful'"
+      # --- END: TEMPORARY DEBUG STEP ---
 
       - name: Add SSH key to the agent
         env:
