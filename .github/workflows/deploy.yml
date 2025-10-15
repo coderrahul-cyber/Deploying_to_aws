@@ -62,7 +62,6 @@ jobs:
       - name: Checkout main branch
         uses: actions/checkout@v4
 
-      # Step 1: Copy docker-compose.prod.yml to the server
       - name: Copy file via scp
         uses: appleboy/scp-action@v0.1.4
         with:
@@ -73,7 +72,6 @@ jobs:
           source: "docker-compose.prod.yml"
           target: "~/"
 
-      # Step 2: Run deployment commands on the server
       - name: Deploy via ssh
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -82,7 +80,13 @@ jobs:
           key: ${{ secrets.PRIVATE_KEY }}
           port: 22
           script: |
+            # --- FIX: Create the .env file with the image names ---
+            echo "NEXT_APP_WEBSITE_IMAGE=ghcr.io/${{ github.repository_owner }}/website:latest" > .env
+            echo "NEXT_APP_NGINX_IMAGE=ghcr.io/${{ github.repository_owner }}/nginx:latest" >> .env
+
+            # Now the rest of the script will work
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # Docker Compose will automatically use the .env file
             sudo docker compose -f docker-compose.prod.yml pull
             sudo docker compose -f docker-compose.prod.yml up -d --remove-orphans
             sudo docker logout
