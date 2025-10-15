@@ -1,0 +1,94 @@
+name: Continuous Integration and Delivery
+
+on:
+  push:
+    branches: [ "main" ]
+
+env:
+  # Define the registry here. Image names will be constructed dynamically in a step.
+  REGISTRY: ghcr.io
+
+jobs:
+  build:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    # Set permissions for the GITHUB_TOKEN to be able to write to packages
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4 # Use latest version
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # This is a more robust way to create dynamic image tags
+      - name: Generate image names
+        run: |
+          # The 'tr' command converts the repo owner to lowercase for the image name
+          # This is the recommended way to handle case sensitivity in container registries
+          IMAGE_OWNER=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')
+          echo "IMAGE_OWNER=${IMAGE_OWNER}" >> $GITHUB_ENV
+          echo "WEBSITE_IMAGE_NAME=${{ env.REGISTRY }}/${IMAGE_OWNER}/website" >> $GITHUB_ENV
+          echo "NGINX_IMAGE_NAME=${{ env.REGISTRY }}/${IMAGE_OWNER}/nginx" >> $GITHUB_ENV
+
+      # Use the built-in GITHUB_TOKEN for authentication. It's more secure.
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker-compose.ci.yml # Specify the compose file for context
+          push: true
+          # Tags should be explicitly defined for the images you build
+          tags: |
+            ${{ env.WEBSITE_IMAGE_NAME }}:latest
+            ${{ env.NGINX_IMAGE_NAME }}:latest
+
+  deploy:
+    name: Deploy to AWS EC2
+    runs-on: ubuntu-latest
+    needs: build # This job depends on the 'build' job finishing successfully
+
+    steps:
+      - name: Add SSH key to the agent
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
+        run: |
+          # This sets up an SSH agent in the runner to securely handle the private key
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          ssh-add - <<< "${{ secrets.PRIVATE_KEY }}"
+
+      - name: Deploy to EC2
+        env:
+          # Get the image names from the previous job's environment
+          WEBSITE_IMAGE: ${{ needs.build.outputs.WEBSITE_IMAGE_NAME }}
+          NGINX_IMAGE: ${{ needs.build.outputs.NGINX_IMAGE_NAME }}
+        run: |
+          # This is a cleaner and more reliable way to run remote commands
+          ssh -o StrictHostKeyChecking=no -A ${{ secrets.AWS_HOST_USER }}@${{ secrets.AWS_EC2_IP_ADDRESS }} << EOF
+            # Login to the container registry on the remote server
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+            # Pull the latest images
+            docker pull ${{ env.WEBSITE_IMAGE_NAME }}:latest
+            docker pull ${{ env.NGINX_IMAGE_NAME }}:latest
+
+            # Stop and remove old containers
+            docker-compose -f docker-compose.prod.yml down
+
+            # Start new containers using the new images
+            docker-compose -f docker-compose.prod.yml up -d
+
+            # Log out and clean up unused images
+            docker logout
+            docker image prune -af
+          EOF

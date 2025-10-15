@@ -1,36 +1,156 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Deploying a Next.js App on AWS EC2 with Docker, NGINX, and GitHub Actions
 
-## Getting Started
+This guide walks you through deploying a Next.js app on an AWS EC2 instance using Docker and NGINX, with CI/CD automation via GitHub Actions.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Table of Contents
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- [Project Setup](#project-setup)
+- [Dockerizing the App](#dockerizing-the-app)
+- [NGINX Proxy Setup](#nginx-proxy-setup)
+- [Automating Deployment with GitHub Actions](#automating-deployment-with-github-actions)
+- [Additional Resources](#additional-resources)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Setup
 
-## Learn More
+1. **Create your project folder and Next.js app:**
 
-To learn more about Next.js, take a look at the following resources:
+    ```
+    mkdir next-tutorial-app
+    cd next-tutorial-app
+    npx create-next-app@latest website
+    cd website
+    npm run dev
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Dockerizing the App
 
-## Deploy on Vercel
+1. **Add a `Dockerfile` inside your `website/` folder:**
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+    ```
+    FROM node:23.10.0-alpine
+    WORKDIR /app
+    COPY ./package*.json ./
+    RUN yarn
+    COPY . .
+    EXPOSE 3000
+    ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+2. **Create a `.dockerignore` in your `website/` folder:**
+
+    ```
+    node_modules
+    .next
+    .DS_Store
+    dist
+    ```
+
+3. **Create a `docker-compose.yml` in your root folder:**
+
+    ```
+    services:
+      website:
+        build:
+          context: ./website
+          dockerfile: Dockerfile
+        command: yarn dev
+        ports:
+          - "3000:3000"
+    ```
+
+4. **Start your containers:**
+
+    ```
+    docker-compose up
+    ```
+
+---
+
+## NGINX Proxy Setup
+
+1. **Create an `nginx/` directory in your root folder.**
+2. **Inside `nginx/` create `nginx.conf`:**
+
+    ```
+    server {
+      listen 80;
+      server_name localhost;
+      location / {
+        proxy_pass http://website:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+      }
+    }
+    ```
+
+3. **Add a Dockerfile to `nginx/`:**
+
+    ```
+    FROM nginx:latest
+    RUN rm /etc/nginx/conf.d/*
+    COPY nginx.conf /etc/nginx/conf.d/
+    EXPOSE 80
+    ```
+
+4. **Update `docker-compose.yml` to add NGINX:**
+
+    ```
+    services:
+      website:
+        build:
+          context: ./website
+          dockerfile: Dockerfile
+        ports:
+          - "3000:3000"
+      nginx:
+        build:
+          context: ./nginx
+          dockerfile: Dockerfile
+        ports:
+          - "80:80"
+        depends_on:
+          - website
+    ```
+
+---
+
+## Automating Deployment with GitHub Actions
+
+1. **Create `.github/workflows/deploy.yml`:**
+
+    ```
+    name: Deploy to AWS EC2
+
+    on:
+      push:
+        branches: [main]
+
+    jobs:
+      deploy:
+        runs-on: ubuntu-latest
+        steps:
+          # - Checkout, build Docker image, SSH to EC2 and deploy
+    ```
+
+2. **Configure your steps for Docker builds and SSH-based deployment.**
+3. **Push to your main branch to trigger deployment.**
+
+---
+
+## Additional Notes
+
+- Set `output: 'standalone'` in your `next.config.js` for production-ready builds.
+- Use `.env` files and secure secrets.
+- For SSL, configure Let's Encrypt as needed.
+
+---
+
+**Happy Coding!**
