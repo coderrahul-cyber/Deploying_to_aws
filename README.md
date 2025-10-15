@@ -6,11 +6,14 @@ This guide walks you through deploying a Next.js app on an AWS EC2 instance usin
 
 ## Table of Contents
 
-- [Project Setup](#project-setup)
-- [Dockerizing the App](#dockerizing-the-app)
-- [NGINX Proxy Setup](#nginx-proxy-setup)
-- [Automating Deployment with GitHub Actions](#automating-deployment-with-github-actions)
-- [Additional Resources](#additional-resources)
+- [Deploying a Next.js App on AWS EC2 with Docker, NGINX, and GitHub Actions](#deploying-a-nextjs-app-on-aws-ec2-with-docker-nginx-and-github-actions)
+  - [Table of Contents](#table-of-contents)
+  - [Project Setup](#project-setup)
+  - [Dockerizing the App](#dockerizing-the-app)
+  - [NGINX Proxy Setup](#nginx-proxy-setup)
+  - [Automating Deployment with GitHub Actions](#automating-deployment-with-github-actions)
+  - [Additional Notes](#additional-notes)
+  - [NEver GIve up](#never-give-up)
 
 ---
 
@@ -154,3 +157,5 @@ This guide walks you through deploying a Next.js app on an AWS EC2 instance usin
 ---
 
 **Happy Coding!**
+
+## NEver GIve up
