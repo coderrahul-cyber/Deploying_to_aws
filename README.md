@@ -13,6 +13,8 @@ This guide walks you through deploying a Next.js app on an AWS EC2 instance usin
   - [NGINX Proxy Setup](#nginx-proxy-setup)
   - [Automating Deployment with GitHub Actions](#automating-deployment-with-github-actions)
   - [Additional Notes](#additional-notes)
+- [Next.js Production Dockerfile Explained](#nextjs-production-dockerfile-explained)
+  - [🧩 Stage 1: Install Dependencies (`deps`)](#-stage-1-install-dependencies-deps)
   - [NEver GIve up](#never-give-up)
 
 ---
@@ -157,5 +159,23 @@ This guide walks you through deploying a Next.js app on an AWS EC2 instance usin
 ---
 
 **Happy Coding!**
+# Next.js Production Dockerfile Explained
 
+This document provides a detailed, line-by-line explanation of a multi-stage Dockerfile designed for a production-ready Next.js application. The goal is to create a small, secure, and efficient Docker image.
+
+The process is broken down into three main stages:
+1.  **`deps`**: Installs the necessary Node.js dependencies.
+2.  **`builder`**: Builds the Next.js application.
+3.  **`runner`**: Creates the final, lightweight image to run the application.
+
+---
+
+## 🧩 Stage 1: Install Dependencies (`deps`)
+
+This first stage is dedicated solely to installing the project's dependencies. By isolating this step, Docker can cache the result, making future builds much faster if the dependencies haven't changed.
+
+```dockerfile
+ARG NODE=node:20-alpine
+FROM ${NODE} AS deps
+```
 ## NEver GIve up
