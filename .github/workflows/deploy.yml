@@ -80,19 +80,14 @@ jobs:
           key: ${{ secrets.PRIVATE_KEY }}
           port: 22
           script: |
-            # Create the .env file
+            # Create the .env file with the correct image names
             echo "NEXT_APP_WEBSITE_IMAGE=ghcr.io/${{ github.repository_owner }}/website:latest" > .env
             echo "NEXT_APP_NGINX_IMAGE=ghcr.io/${{ github.repository_owner }}/nginx:latest" >> .env
 
-            # --- SANITY CHECK: Print the variables to the log ---
-            echo "---"
-            echo "Attempting login for user: ${{ github.actor }}"
-            echo "Using images from .env file:"
-            cat .env
-            echo "---"
-
-            # Use the Personal Access Token for login
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # --- THE FINAL FIX ---
+            # Login using the PAT and explicitly use the REPOSITORY OWNER's username.
+            # This removes any ambiguity about who is logging in.
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
             
             # The rest of the script
             sudo docker compose -f docker-compose.prod.yml pull
